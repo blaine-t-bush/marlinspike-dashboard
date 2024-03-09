@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block head %}
+  {{ super() }}
+{% endblock %}
+
+{% block content %}
+  <h1>Data:</h1>
+  {{ data.air_temperature }}°C
+  {{ data.precipitation_rate }} mm/h
+  {{ data.wind_speed }} ({{ data.wind_speed_of_gust }}) m/s from {{ data.wind_from_direction }}
+{% endblock %}
