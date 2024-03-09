@@ -1,0 +1,21 @@
+{% macro degrees_to_direction(degrees) -%}
+  {% if degrees > 337.5 or degrees <= 22.5 %}
+    N
+  {% elif degrees <= 67.5 %}
+    NE
+  {% elif degrees <= 112.5 %}
+    E
+  {% elif degrees <= 157.5 %}
+    SE
+  {% elif degrees <= 202.5 %}
+    S
+  {% elif degrees <= 247.5 %}
+    SW
+  {% elif degrees <= 292.5 %}
+    W
+  {% elif degrees <= 337.5 %}
+    NW
+  {% else %}
+    ?
+  {% endif %}
+{%- endmacro %}
