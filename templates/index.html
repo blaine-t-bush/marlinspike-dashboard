@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% from "macros.html" import degrees_to_direction %}
+
+{% block head %}
+  {{ super() }}
+{% endblock %}
+
+{% block content %}
+  <h1>Data:</h1>
+  {{ weather_data.air_temperature }}°C
+  {{ weather_data.precipitation_rate }} mm/h
+  {{ weather_data.wind_speed }} ({{ weather_data.wind_speed_of_gust }}) m/s from {{ weather_data.wind_from_direction }} {{ degrees_to_direction(weather_data.wind_from_direction) }}
+{% endblock %}
