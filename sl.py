@@ -12,35 +12,65 @@ class stations():
         self.update_interval = update_interval
         self.stations = [{"name" : "Bredäng",
                           "stop_id": 9289,
+                          "rr_stop_id": 740021724,
                           "line": 13,
-                          "direction": 1},
+                          "rr_line": 32,
+                          "direction": 1,
+                          "rr_direction": 740020757},
                          {"name": "Ålgrytevägen",
                           "stop_id": 1793,
+                          "rr_stop_id": 740065618,
                           "line": 163,
-                          "direction": 2}]
+                          "rr_line": 128,
+                          "direction": 2,
+                          "rr_direction": 740000789}]
         self.last_update = datetime.datetime.now()
         self.update()
 
 
     def update(self):
         for station in self.stations:
-            next_departures = fetch_departures(station)
-            station['departures'] = next_departures
+            realtime_departures, json = fetch_departures(station)
+            rr_departures, rr_json = fetch_departures_rr(station)
 
+
+            station['realtime_departures'] = realtime_departures
+            station['scheduled_departures'] = rr_departures
+            station['json'] = json
+            station['rr_json'] = rr_json
         self.last_update = datetime.datetime.now()
 
+
     def times_to_next_departures(self):
-        if (datetime.datetime.now() - self.last_update).total_seconds > self.update_interval:
+        """
+        This function returns a dictionary. The keys of the dictionary are the
+        line numbers of the public transport options tracked by the dashboard.
+        The contents of the dictionary items are two lists, the first list
+        is of (minutes, seconds) tuples of the time until the next
+        departures from the sl API which should give
+        realtime transit details.
+        The second list is (minutes, seconds) tuples of scheduled departures
+        from resrobot.
+        """
+        if (datetime.datetime.now() - self.last_update).total_seconds() > self.update_interval:
             self.update()
 
-        result = []
+        result = {}
         for station in self.stations:
             this_station = [station['line']]
-            for departure in station['departures']:
-                pass
+            realtime_deltas = []
+            scheduled_deltas = []
+            for departure in station['realtime_departures']:
+                delta = departure - datetime.datetime.now()
+                realtime_deltas.append(divmod(delta.total_seconds(), 60))
+            for departure in station['scheduled_departures']:
+                delta = departure - datetime.datetime.now()
+                scheduled_deltas.append(divmod(delta.total_seconds(), 60))
 
-            result.append([station['line'], station['departures']])
 
+
+            result[station['line']] = [realtime_deltas, scheduled_deltas]
+        return result
 
 def fetch_departures(station):
     """
@@ -63,23 +93,32 @@ def fetch_departures(station):
         estimated_departures.append(
             datetime.datetime.strptime(i['expected'], '%Y-%m-%dT%H:%M:%S'))
 
-    return estimated_departures
+    return estimated_departures, payload
 
 def fetch_departures_rr(station):
     """
     Bredäng = 740021724
     Ålgrytevägen 740065618
     """
-    station_id = 740021724
-    url = f"https://api.resrobot.se/v2.1/departureBoard?id={station_id}&format=json&accessId={rr_api_key}"
-    params = {'products': str(32),
-              'direction': "740020757", #code for Ropsten
-              'maxJourneys': '3'}
+    station_id = str(station['rr_stop_id'])
+    url = f"https://api.resrobot.se/v2.1/departureBoard"
+    params = {'id': station['rr_stop_id'],
+              'accessId': rr_api_key,
+              'format': 'json',
+              'products': station['rr_line'],
+              'direction': station['rr_direction'], #code for Ropsten
+              'maxJourneys': '5'}
 
     headers = {'Content-type': 'application/json'}
     r = requests.get(url, params=params, headers=headers, timeout=5)
-    payload = json.loads(r.text)
-    return payload
+    payload = r.json()
+    scheduled_departures = []
+    for departure in payload['Departure']:
+        dt = departure['date'] + 'T' + departure['time']
+        dep_time =  datetime.datetime.strptime(dt,  '%Y-%m-%dT%H:%M:%S')
+        scheduled_departures.append(dep_time)
+
+    return scheduled_departures, payload
 
 def search_station_rr(search_string):
     url = f"https://api.resrobot.se/v2.1/location.name?input={search_string}&format=json&accessId={rr_api_key}"
